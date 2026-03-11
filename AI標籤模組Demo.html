@@ -209,18 +209,17 @@
             <div class="form-label"><span class="required">*</span> 產品型錄圖檔</div>
             <div class="form-input-group">
                 <div class="radio-group">
-                    <label class="radio-label">
-                        <input type="radio" name="img-source" checked>
-                        <div class="custom-radio"></div>
-                        <span>上傳原始圖檔</span>
-                    </label>
-                    <label class="radio-label">
-                        <input type="radio" name="img-source">
-                        <div class="custom-radio"></div>
-                        <span>使用AI去背工具</span>
-                    </label>
-                </div>
-                
+    <label class="radio-label">
+        <input type="radio" name="img-source" checked>
+        <div class="custom-radio"></div>
+        <span>上傳原始圖檔</span>
+    </label>
+    <label class="radio-label" style="cursor: not-allowed;">
+        <input type="radio" name="img-source" disabled>
+        <div class="custom-radio" style="border-color: #e0e0e0; background-color: #f5f5f5;"></div>
+        <span style="color: #aaaaaa;">使用AI去背工具</span>
+    </label>
+</div>
                 <div class="upload-dropzone">
                     <div class="upload-prompt" id="upload-prompt">
                         請把檔案拖拉到此框，或是 
