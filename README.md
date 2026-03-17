@@ -1,3 +1,2 @@
 * [詢問及信件功能新增AI優化翻譯模組Demo_V2](詢問及信件功能新增AI優化翻譯模組Demo_V2.html)
-* [AI標籤模組 Demo](AI標籤模組Demo.html)
-* [AI標籤模組 Demo_V2](AI標籤模組Demo_V2.html)
+* [AI標籤模組 Demo_V3](AI標籤模組Demo_V3.html)
