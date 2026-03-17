@@ -1,0 +1,984 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>詢問及信件功能新增AI優化翻譯模組Demo</title>
+    <style>
+        :root {
+            --primary: #f39c12;
+            --primary-hover: #e67e22;
+            --exhibitor: #e74c3c;
+            --exhibitor-hover: #c0392b;
+            --text-main: #333333;
+            --text-muted: #666666;
+            --border: #dce0e4;
+            --bg-light: #f8f9fa;
+            --ai-bg: #f5f0ff;
+            --ai-border: #dcd0ff;
+            --ai-text: #5e35b1;
+            --error: #e74c3c;
+        }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background-color: #eef2f5;
+            margin: 0;
+            padding: 20px 20px 40px 20px;
+            display: flex;
+            flex-wrap: wrap;
+            gap: 30px;
+            justify-content: center;
+        }
+
+        /* Modal Base */
+        .modal {
+            background: #ffffff;
+            border-radius: 12px;
+            width: 640px; 
+            box-shadow: 0 10px 30px rgba(0,0,0,0.08);
+            overflow: hidden;
+            display: flex;
+            flex-direction: column;
+            border: 1px solid rgba(0,0,0,0.05);
+        }
+
+        .modal-header {
+            padding: 16px 24px;
+            color: white;
+            font-weight: 600;
+            font-size: 16px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .header-visitor { background: var(--primary); }
+        .header-exhibitor { background: var(--exhibitor); }
+
+        .modal-body {
+            padding: 24px;
+            flex-grow: 1;
+        }
+
+        .form-group { margin-bottom: 20px; }
+        
+        label {
+            display: block;
+            margin-bottom: 8px;
+            font-size: 14px;
+            font-weight: 500;
+            color: var(--text-main);
+        }
+
+        input[type="text"], textarea {
+            width: 100%;
+            padding: 12px;
+            border: 1px solid var(--border);
+            border-radius: 6px;
+            box-sizing: border-box;
+            font-family: inherit;
+            font-size: 14px;
+            transition: border-color 0.2s, box-shadow 0.2s;
+        }
+
+        input[type="text"]:focus, textarea:focus {
+            outline: none;
+            border-color: var(--primary);
+            box-shadow: 0 0 0 3px rgba(243, 156, 18, 0.1);
+        }
+        
+        .exhibitor-focus:focus {
+            border-color: var(--exhibitor) !important;
+            box-shadow: 0 0 0 3px rgba(231, 76, 60, 0.1) !important;
+        }
+
+        textarea {
+            resize: vertical;
+            height: 140px;
+            line-height: 1.5;
+        }
+
+        /* 字數統計器 */
+        .char-counter {
+            text-align: right;
+            font-size: 12px;
+            color: var(--text-muted);
+            margin-top: 6px;
+        }
+
+        /* Unified Toolbar */
+        .toolbar {
+            display: flex;
+            gap: 8px;
+            margin-bottom: 8px;
+            position: relative;
+            flex-wrap: nowrap;
+            overflow-x: visible;
+        }
+
+        .btn-tool {
+            background: #ffffff;
+            border: 1px solid var(--border);
+            padding: 6px 12px;
+            border-radius: 6px;
+            font-size: 13px;
+            cursor: pointer;
+            color: var(--text-main);
+            transition: all 0.2s;
+            display: flex;
+            align-items: center;
+            gap: 6px;
+            white-space: nowrap;
+        }
+
+        .btn-tool:hover:not(:disabled) {
+            background: var(--bg-light);
+            border-color: #bbb;
+        }
+
+        .btn-tool.ai-btn {
+            color: var(--ai-text);
+            border-color: var(--ai-border);
+            background: #faf8ff;
+        }
+        .btn-tool.ai-btn:hover:not(:disabled) {
+            background: var(--ai-bg);
+            border-color: #cbb8ff;
+        }
+
+        /* 翻譯語系下拉選單 */
+        .lang-select {
+            border: none;
+            background: transparent;
+            color: inherit;
+            font-size: 12px;
+            cursor: pointer;
+            outline: none;
+            padding: 0 2px;
+            font-family: inherit;
+        }
+        .lang-select option { color: var(--text-main); }
+
+        /* Dropdown Menus */
+        .dropdown-menu {
+            display: none;
+            position: absolute;
+            top: 100%;
+            left: 0;
+            margin-top: 4px;
+            background: white;
+            border: 1px solid var(--border);
+            border-radius: 8px;
+            box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+            z-index: 100;
+            width: 240px;
+            overflow: hidden;
+        }
+
+        .dropdown-item {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 8px 12px;
+            border-bottom: 1px solid #f0f0f0;
+            transition: background 0.1s;
+        }
+        .dropdown-item:last-child { border-bottom: none; }
+        .dropdown-item:hover { background: var(--bg-light); }
+        
+        .dropdown-item-btn {
+            background: none;
+            border: none;
+            cursor: pointer;
+            font-size: 13px;
+            color: var(--text-main);
+            text-align: left;
+            flex-grow: 1;
+            padding: 4px 0;
+        }
+        .dropdown-item-btn:hover { color: var(--primary); }
+        
+        .dropdown-item-delete {
+            background: #ffecd9;
+            color: #d35400;
+            border: none;
+            border-radius: 4px;
+            padding: 4px 8px;
+            font-size: 11px;
+            cursor: pointer;
+        }
+        .dropdown-item-delete:hover { background: #f39c12; color: white; }
+
+        .dropdown-menu > button {
+            display: block;
+            width: 100%;
+            text-align: left;
+            padding: 10px 16px;
+            border: none;
+            background: none;
+            cursor: pointer;
+            font-size: 13px;
+            color: var(--text-main);
+            transition: background 0.1s;
+        }
+        .dropdown-menu > button:hover {
+            background: var(--bg-light);
+            color: var(--primary);
+        }
+
+        /* Error Text */
+        .error-text {
+            color: var(--error);
+            font-size: 12px;
+            margin-top: 6px;
+            display: none;
+            align-items: center;
+            gap: 4px;
+        }
+
+        /* AI Preview Area */
+        .ai-preview-container {
+            display: none;
+            margin-top: 12px;
+            border: 1px solid var(--ai-border);
+            border-radius: 8px;
+            background: var(--ai-bg);
+            overflow: hidden;
+            animation: slideDown 0.3s ease-out;
+        }
+
+        @keyframes slideDown {
+            from { opacity: 0; transform: translateY(-10px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+
+        .ai-preview-header {
+            background: #ebe0ff;
+            padding: 8px 12px;
+            font-size: 12px;
+            font-weight: 600;
+            color: var(--ai-text);
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .ai-warning-text {
+            font-size: 11px;
+            color: #7e57c2;
+            font-weight: normal;
+            margin-right: 12px;
+            opacity: 0.8;
+        }
+
+        .ai-preview-body { padding: 12px; }
+
+        .ai-preview-text {
+            width: 100%;
+            height: 120px;
+            border: 1px solid transparent;
+            background: transparent;
+            font-size: 14px;
+            color: var(--text-main);
+            resize: vertical;
+            line-height: 1.5;
+        }
+        .ai-preview-text:focus {
+            outline: none;
+            border-bottom: 1px solid var(--ai-border);
+        }
+
+        .ai-preview-actions {
+            display: flex;
+            justify-content: flex-end;
+            gap: 8px;
+            padding: 0 12px 12px 12px;
+        }
+
+        .btn-apply {
+            background: var(--ai-text);
+            color: white;
+            border: none;
+            padding: 6px 16px;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 13px;
+            transition: background 0.2s;
+        }
+        .btn-apply:hover { background: #4527a0; }
+        
+        .btn-cancel {
+            background: transparent;
+            color: var(--text-muted);
+            border: 1px solid var(--border);
+            padding: 6px 16px;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 13px;
+        }
+        .btn-cancel:hover { background: #e9ecef; }
+
+        /* Loading Animation */
+        .loading-state {
+            display: none;
+            padding: 20px;
+            text-align: center;
+            color: var(--ai-text);
+            font-size: 13px;
+        }
+        
+        .spinner {
+            display: inline-block;
+            width: 20px;
+            height: 20px;
+            border: 3px solid rgba(94, 53, 177, 0.2);
+            border-radius: 50%;
+            border-top-color: var(--ai-text);
+            animation: spin 1s ease-in-out infinite;
+            margin-bottom: 10px;
+        }
+
+        .spin-icon {
+            display: inline-block;
+            animation: spin 1s linear infinite;
+        }
+
+        @keyframes spin {
+            to { transform: rotate(360deg); }
+        }
+
+        /* Read-only Message Box */
+        .msg-box {
+            background: var(--bg-light);
+            border: 1px solid var(--border);
+            padding: 16px;
+            border-radius: 8px;
+            font-size: 14px;
+            margin-bottom: 20px;
+            color: var(--text-main);
+            line-height: 1.5;
+            position: relative;
+        }
+        .msg-meta {
+            font-size: 12px;
+            color: var(--text-muted);
+            margin-bottom: 10px;
+            border-bottom: 1px solid #ddd;
+            padding-bottom: 10px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        /* Footer Buttons */
+        .modal-footer {
+            padding: 16px 24px;
+            border-top: 1px solid var(--border);
+            background: var(--bg-light);
+            display: flex;
+            justify-content: flex-end; 
+            gap: 12px;
+        }
+
+        .btn-primary {
+            background: var(--primary);
+            color: white;
+            border: none;
+            padding: 10px 24px;
+            border-radius: 6px;
+            cursor: pointer;
+            font-size: 14px;
+            font-weight: 500;
+        }
+        .btn-primary:hover { background: var(--primary-hover); }
+        
+        .btn-primary.exhibitor-btn { background: var(--exhibitor); }
+        .btn-primary.exhibitor-btn:hover { background: var(--exhibitor-hover); }
+
+        .btn-secondary {
+            background: white;
+            color: var(--text-main);
+            border: 1px solid var(--border);
+            padding: 10px 24px;
+            border-radius: 6px;
+            cursor: pointer;
+            font-size: 14px;
+        }
+        .btn-secondary:hover { background: #e9ecef; }
+
+        /* Toast Popup */
+        .toast-popup {
+            position: fixed;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            background: rgba(33, 33, 33, 0.95);
+            color: white;
+            padding: 16px 24px;
+            border-radius: 8px;
+            font-size: 15px;
+            z-index: 9999;
+            display: flex;
+            align-items: center;
+            gap: 16px;
+            opacity: 0;
+            visibility: hidden;
+            transition: opacity 0.3s ease, visibility 0.3s ease;
+            box-shadow: 0 4px 16px rgba(0,0,0,0.2);
+            font-weight: 500;
+        }
+        .toast-popup.show {
+            opacity: 1;
+            visibility: visible;
+        }
+        .toast-close {
+            cursor: pointer;
+            opacity: 0.6;
+            font-size: 14px;
+            transition: opacity 0.2s;
+        }
+        .toast-close:hover {
+            opacity: 1;
+        }
+    </style>
+</head>
+<body>
+
+    <div style="width: 100%; text-align: center; margin-bottom: 20px;">
+        <button onclick="simulateErrors()" style="background: #e74c3c; color: white; border: none; padding: 10px 24px; border-radius: 6px; cursor: pointer; font-size: 15px; font-weight: bold; box-shadow: 0 4px 10px rgba(231,76,60,0.3); transition: all 0.2s;">
+            🚨 模擬錯誤狀態 (Demo)
+        </button>
+    </div>
+
+    <div id="toast-msg" class="toast-popup">
+        <span id="toast-text">送出成功！</span>
+        <span class="toast-close" onclick="closeToast()">✖</span>
+    </div>
+
+    <div class="modal" id="visitor-modal">
+        <div class="modal-header header-visitor">
+            <span>Query Product</span>
+            <span style="cursor:pointer; opacity: 0.8;">✖</span>
+        </div>
+        <div class="modal-body">
+            
+            <div class="form-group">
+                <label>Topic <span style="color:red">*</span></label>
+                <input type="text" id="v-topic" value="Inquiry about IoT Lifetime Flat">
+            </div>
+            
+            <div class="form-group">
+                <label>Content <span style="color:red">*</span></label>
+                
+                <div class="toolbar" id="v-toolbar">
+                    <div style="position: relative;">
+                        <button class="btn-tool" onclick="toggleMenu('v-template-menu', event)">
+                            📁 My Templates ▾
+                        </button>
+                        <div id="v-template-menu" class="dropdown-menu">
+                            <div class="dropdown-item">
+                                <button class="dropdown-item-btn" onclick="applyMyTemplate('v', 'Hello, I would like to request the catalog.')">Catalog Request</button>
+                                <button class="dropdown-item-delete" onclick="showToast('Template deleted.')">Delete</button>
+                            </div>
+                            <div class="dropdown-item">
+                                <button class="dropdown-item-btn" onclick="applyMyTemplate('v', 'Could we schedule a meeting?')">Meeting Invite</button>
+                                <button class="dropdown-item-delete" onclick="showToast('Template deleted.')">Delete</button>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div style="position: relative;">
+                        <button class="btn-tool ai-btn" onclick="toggleMenu('v-ai-menu', event)">
+                            ✨ AI Assistant ▾
+                        </button>
+                        <div id="v-ai-menu" class="dropdown-menu">
+                            <button onclick="triggerAI('v', 'catalog')">Request Catalog & Pricing</button>
+                            <button onclick="triggerAI('v', 'specs')">Inquire Tech Specs</button>
+                            <hr style="margin:4px 0; border:0; border-top:1px solid #eee;">
+                            <button onclick="triggerAI('v', 'byTopic')">Auto-write by Topic</button>
+                            <button onclick="triggerAI('v', 'optimize')">Optimize Current Draft</button>
+                        </div>
+                    </div>
+
+                    <div class="btn-tool ai-btn" style="padding: 2px 6px; gap: 4px;">
+                        <button onclick="triggerAI('v', 'translate')" style="border:none; background:none; cursor:pointer; color:inherit; font-size:13px; font-family:inherit; padding: 4px; display:flex; align-items:center; gap:4px;">
+                            🌐 Translate
+                        </button>
+                        <span style="opacity: 0.3;">|</span>
+                        <select id="v-lang-from" class="lang-select">
+                            <option value="auto">Auto</option>
+                            <option value="en">EN</option>
+                            <option value="zh">ZH</option>
+                            <option value="ja">JA</option>
+                            <option value="ru">RU</option>
+                        </select>
+                        <span style="font-size: 10px; opacity: 0.6;">➔</span>
+                        <select id="v-lang-to" class="lang-select">
+                            <option value="zh" selected>ZH</option>
+                            <option value="en">EN</option>
+                            <option value="ja">JA</option>
+                            <option value="ru">RU</option>
+                        </select>
+                    </div>
+                </div>
+
+                <div id="v-error" class="error-text">⚠️ Message</div>
+
+                <textarea id="v-content" placeholder="Please enter your message here..." maxlength="1000" oninput="updateCharCount('v')"></textarea>
+                <div id="v-char-count" class="char-counter">0 / 1000</div>
+
+                <div id="v-ai-preview" class="ai-preview-container">
+                    <div class="ai-preview-header">
+                        <span id="v-ai-title">✨ AI Suggestion</span>
+                        <div>
+                            <span class="ai-warning-text">AI-generated content may be inaccurate.</span>
+                            <span style="cursor:pointer; opacity: 0.6;" onclick="closeAIPreview('v')">✖</span>
+                        </div>
+                    </div>
+                    
+                    <div id="v-loading" class="loading-state">
+                        <div class="spinner"></div>
+                        <div>AI 正在為您處理中...</div>
+                    </div>
+
+                    <div id="v-error-area" style="display:none;">
+                        <div class="loading-state" style="display:block; padding-bottom: 12px;">
+                            <div style="font-size: 22px; margin-bottom: 8px; display: inline-block;">⚠️</div>
+                            <div>AI service is currently busy or unresponsive. Please try again.</div>
+                        </div>
+                        <div class="ai-preview-actions">
+                            <button class="btn-cancel" onclick="closeAIPreview('v')">Cancel</button>
+                            <button class="btn-apply" onclick="retryAI('v')">Retry</button>
+                        </div>
+                    </div>
+
+                    <div id="v-result-area" style="display:none;">
+                        <div class="ai-preview-body">
+                            <textarea id="v-ai-text" class="ai-preview-text"></textarea>
+                        </div>
+                        <div class="ai-preview-actions">
+                            <button class="btn-cancel" onclick="closeAIPreview('v')">Cancel</button>
+                            <button class="btn-apply" onclick="applyAIText('v')">Apply & Replace</button>
+                        </div>
+                    </div>
+                </div>
+
+            </div>
+            
+            <div class="form-group" style="font-size: 13px; color: var(--text-muted); margin-bottom: 0;">
+                <label style="font-weight: normal; display: flex; align-items: center; gap: 6px;">
+                    <input type="checkbox"> Save this message to Message Template.
+                </label>
+            </div>
+        </div>
+        <div class="modal-footer">
+            <button class="btn-secondary" onclick="clearForm('v')">Clear</button>
+            <button class="btn-primary" onclick="submitForm('v')">Submit</button>
+        </div>
+    </div>
+
+
+    <div class="modal" id="exhibitor-modal">
+        <div class="modal-header header-exhibitor">
+            <span>回覆訊息</span>
+            <span style="cursor:pointer; opacity: 0.8;">✖</span>
+        </div>
+        <div class="modal-body">
+            
+            <div class="msg-box">
+                <div class="msg-meta">
+                    <span><strong>From:</strong> hytest2a(參觀者) &nbsp;|&nbsp; <strong>Date:</strong> 2025/04/24 11:18</span>
+                    
+                    <div class="btn-tool ai-btn" style="padding: 2px 6px; gap: 4px; margin: 0; border-color: var(--border); background: white;">
+                        <button id="btn-incoming-trans" onclick="toggleIncomingTranslate()" style="border:none; background:none; cursor:pointer; color:inherit; font-size:13px; font-family:inherit; padding: 4px; display:flex; align-items:center; gap:4px; font-weight:500;">
+                            🌐 翻譯
+                        </button>
+                        <span style="opacity: 0.3;">|</span>
+                        <select id="in-lang-from" class="lang-select" onchange="resetIncomingTranslate()">
+                            <option value="auto">自動</option>
+                            <option value="en">英文</option>
+                            <option value="zh">中文</option>
+                            <option value="ja">日文</option>
+                            <option value="ru">俄文</option>
+                        </select>
+                        <span style="font-size: 10px; opacity: 0.6;">➔</span>
+                        <select id="in-lang-to" class="lang-select" onchange="resetIncomingTranslate()">
+                            <option value="zh" selected>中文</option>
+                            <option value="en">英文</option>
+                            <option value="ja">日文</option>
+                            <option value="ru">俄文</option>
+                        </select>
+                    </div>
+                </div>
+                <div id="incoming-text">
+                    公司名稱: hytest2a<br>
+                    國家: TW<br>
+                    Email: hytest2a@hy.com.tw<br>
+                    電話: 333<br>
+                    產品: IoT Lifetime Flat<br><br>
+                    Hello, is your IoT platform easy to integrate with our existing hardware? Please provide more details.
+                </div>
+            </div>
+
+            <div class="form-group">
+                <label>RE: 主旨</label>
+                <input type="text" id="e-topic" class="exhibitor-focus" value="RE: Inquiry about IoT Lifetime Flat">
+            </div>
+
+            <div class="form-group">
+                <label>回覆內容</label>
+                
+                <div class="toolbar" id="e-toolbar">
+                    <div style="position: relative;">
+                        <button class="btn-tool" onclick="toggleMenu('e-template-menu', event)">
+                            📁 我的範本 ▾
+                        </button>
+                        <div id="e-template-menu" class="dropdown-menu">
+                            <div class="dropdown-item">
+                                <button class="dropdown-item-btn" onclick="applyMyTemplate('e', '感謝您的詢問，隨信附上型錄。')">通用回覆範本</button>
+                                <button class="dropdown-item-delete" onclick="showToast('已刪除範本')">刪除</button>
+                            </div>
+                            <div class="dropdown-item">
+                                <button class="dropdown-item-btn" onclick="applyMyTemplate('e', 'We will get back to you soon.')">英文預設回覆</button>
+                                <button class="dropdown-item-delete" onclick="showToast('已刪除範本')">刪除</button>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div style="position: relative;">
+                        <button class="btn-tool ai-btn" onclick="toggleMenu('e-ai-menu', event)">
+                            ✨ AI 小幫手 ▾
+                        </button>
+                        <div id="e-ai-menu" class="dropdown-menu">
+                            <button onclick="triggerAI('e', 'autoReply')">自動撰寫回覆</button>
+                            <hr style="margin:4px 0; border:0; border-top:1px solid #eee;">
+                            <button onclick="triggerAI('e', 'optimize')">潤飾語氣 (專業商務)</button>
+                            <button onclick="triggerAI('e', 'expand')">擴寫內容 (增加細節)</button>
+                        </div>
+                    </div>
+
+                    <div class="btn-tool ai-btn" style="padding: 2px 6px; gap: 4px;">
+                        <button onclick="triggerAI('e', 'translate')" style="border:none; background:none; cursor:pointer; color:inherit; font-size:13px; font-family:inherit; padding: 4px; display:flex; align-items:center; gap:4px;">
+                            🌐 翻譯
+                        </button>
+                        <span style="opacity: 0.3;">|</span>
+                        <select id="e-lang-from" class="lang-select">
+                            <option value="auto">自動</option>
+                            <option value="zh">中文</option>
+                            <option value="en">英文</option>
+                            <option value="ja">日文</option>
+                            <option value="ru">俄文</option>
+                        </select>
+                        <span style="font-size: 10px; opacity: 0.6;">➔</span>
+                        <select id="e-lang-to" class="lang-select">
+                            <option value="en" selected>英文</option>
+                            <option value="zh">中文</option>
+                            <option value="ja">日文</option>
+                            <option value="ru">俄文</option>
+                        </select>
+                    </div>
+                </div>
+
+                <div id="e-error" class="error-text">⚠️ 提示訊息</div>
+
+                <textarea id="e-content" class="exhibitor-focus" placeholder="請填寫回覆內容..." maxlength="1000" oninput="updateCharCount('e')"></textarea>
+                <div id="e-char-count" class="char-counter">0 / 1000</div>
+
+                <div id="e-ai-preview" class="ai-preview-container">
+                    <div class="ai-preview-header">
+                        <span id="e-ai-title">✨ AI 建議內容</span>
+                        <div>
+                            <span class="ai-warning-text">AI 產出的內容可能會有錯誤</span>
+                            <span style="cursor:pointer; opacity: 0.6;" onclick="closeAIPreview('e')">✖</span>
+                        </div>
+                    </div>
+                    
+                    <div id="e-loading" class="loading-state">
+                        <div class="spinner"></div>
+                        <div>AI 正在為您處理中...</div>
+                    </div>
+
+                    <div id="e-error-area" style="display:none;">
+                        <div class="loading-state" style="display:block; padding-bottom: 12px;">
+                            <div style="font-size: 22px; margin-bottom: 8px; display: inline-block;">⚠️</div>
+                            <div>AI 服務目前較為忙碌或無回應，請稍後再試。</div>
+                        </div>
+                        <div class="ai-preview-actions">
+                            <button class="btn-cancel" onclick="closeAIPreview('e')">取消</button>
+                            <button class="btn-apply" onclick="retryAI('e')">重試</button>
+                        </div>
+                    </div>
+
+                    <div id="e-result-area" style="display:none;">
+                        <div class="ai-preview-body">
+                            <textarea id="e-ai-text" class="ai-preview-text exhibitor-focus"></textarea>
+                        </div>
+                        <div class="ai-preview-actions">
+                            <button class="btn-cancel" onclick="closeAIPreview('e')">取消</button>
+                            <button class="btn-apply" onclick="applyAIText('e')">套用取代</button>
+                        </div>
+                    </div>
+                </div>
+
+            </div>
+
+            <div class="form-group" style="font-size: 13px; color: var(--text-muted); margin-bottom: 0;">
+                <label style="font-weight: normal; display: flex; align-items: center; gap: 6px;">
+                    <input type="checkbox"> 將此訊息儲存至範本
+                </label>
+            </div>
+        </div>
+        
+        <div class="modal-footer">
+            <button class="btn-secondary" onclick="clearForm('e')">清除</button>
+            <button class="btn-primary exhibitor-btn" onclick="submitForm('e')">送出</button>
+        </div>
+    </div>
+
+
+    <script>
+        // --- 變數紀錄 (用於 Retry 功能) ---
+        let lastAction_v = '';
+        let lastAction_e = '';
+
+        // --- Demo 全域錯誤觸發 ---
+        function simulateErrors() {
+            // 1. 詢問介面 AI 翻譯錯誤
+            triggerAI('v', 'translate', true);
+            
+            // 2. 回覆介面 信件翻譯錯誤
+            const btn = document.getElementById('btn-incoming-trans');
+            if (isIncomingTranslated) resetIncomingTranslate(); // 若已翻譯則先還原
+            btn.innerHTML = `<span class="spin-icon">↻</span> 翻譯中...`;
+            btn.disabled = true;
+            btn.style.opacity = "0.7";
+            
+            setTimeout(() => {
+                btn.innerHTML = "⚠️請再試一次";
+                btn.disabled = false;
+                btn.style.opacity = "1";
+            }, 1000);
+
+            // 3. 回覆介面 AI 小幫手錯誤
+            triggerAI('e', 'autoReply', true);
+        }
+
+        // --- Toast 提示功能 ---
+        let toastTimeout;
+        function showToast(msg) {
+            const toast = document.getElementById('toast-msg');
+            const text = document.getElementById('toast-text');
+            text.innerText = msg;
+            toast.classList.add('show');
+            
+            clearTimeout(toastTimeout);
+            toastTimeout = setTimeout(() => { closeToast(); }, 1500); 
+        }
+
+        function closeToast() {
+            document.getElementById('toast-msg').classList.remove('show');
+        }
+
+        // --- 表單共用邏輯 ---
+        function updateCharCount(prefix) {
+            const el = document.getElementById(`${prefix}-content`);
+            const countEl = document.getElementById(`${prefix}-char-count`);
+            countEl.innerText = `${el.value.length} / 1000`;
+        }
+
+        function clearForm(prefix) {
+            document.getElementById(`${prefix}-content`).value = '';
+            const topic = document.getElementById(`${prefix}-topic`);
+            if(topic && prefix === 'v') topic.value = ''; 
+            updateCharCount(prefix);
+            closeAIPreview(prefix);
+        }
+
+        function submitForm(prefix) {
+            const msg = prefix === 'v' ? 'Submitted successfully!' : '回覆送出成功！';
+            showToast(msg);
+            clearForm(prefix);
+        }
+
+        document.addEventListener('click', function(event) {
+            if (!event.target.closest('.toolbar')) {
+                document.querySelectorAll('.dropdown-menu').forEach(m => m.style.display = 'none');
+            }
+        });
+
+        function toggleMenu(menuId, event) {
+            event.stopPropagation();
+            document.querySelectorAll('.dropdown-menu').forEach(m => {
+                if(m.id !== menuId) m.style.display = 'none';
+            });
+            const menu = document.getElementById(menuId);
+            menu.style.display = menu.style.display === 'block' ? 'none' : 'block';
+        }
+
+        function showError(prefix, message) {
+            const errorEl = document.getElementById(`${prefix}-error`);
+            errorEl.innerHTML = `⚠️ ${message}`;
+            errorEl.style.display = 'flex';
+            setTimeout(() => { errorEl.style.display = 'none'; }, 4000);
+        }
+
+        function closeAIPreview(prefix) {
+            document.getElementById(`${prefix}-ai-preview`).style.display = 'none';
+            document.getElementById(`${prefix}-ai-text`).value = '';
+            document.getElementById(`${prefix}-error-area`).style.display = 'none';
+        }
+
+        function applyMyTemplate(prefix, text) {
+            const contentEl = document.getElementById(`${prefix}-content`);
+            contentEl.value = text;
+            updateCharCount(prefix);
+            document.querySelectorAll('.dropdown-menu').forEach(m => m.style.display = 'none');
+            closeAIPreview(prefix);
+        }
+
+        function applyAIText(prefix) {
+            const aiText = document.getElementById(`${prefix}-ai-text`).value;
+            const contentEl = document.getElementById(`${prefix}-content`);
+            contentEl.value = aiText;
+            updateCharCount(prefix);
+            closeAIPreview(prefix);
+        }
+
+        // --- 參展商端：接收信件的翻譯邏輯 ---
+        let isIncomingTranslated = false;
+        
+        function resetIncomingTranslate() {
+            if (!isIncomingTranslated) return;
+            const el = document.getElementById('incoming-text');
+            const btn = document.getElementById('btn-incoming-trans');
+            el.innerHTML = "公司名稱: hytest2a<br>國家: TW<br>Email: hytest2a@hy.com.tw<br>電話: 333<br>產品: IoT Lifetime Flat<br><br>Hello, is your IoT platform easy to integrate with our existing hardware? Please provide more details.";
+            btn.innerHTML = "🌐 翻譯";
+            isIncomingTranslated = false;
+        }
+
+        function toggleIncomingTranslate() {
+            const el = document.getElementById('incoming-text');
+            const btn = document.getElementById('btn-incoming-trans');
+            const targetSelect = document.getElementById('in-lang-to');
+            const targetLang = targetSelect.options[targetSelect.selectedIndex].text;
+            
+            if(btn.innerHTML.includes("⚠️請再試一次")) {
+                // 若為錯誤狀態，點擊重試
+                btn.innerHTML = "🌐 翻譯";
+            }
+
+            if(!isIncomingTranslated) {
+                // 進入 Loading 狀態
+                btn.innerHTML = `<span class="spin-icon">↻</span> 翻譯中...`;
+                btn.disabled = true;
+                btn.style.opacity = "0.7";
+
+                // 模擬 API 延遲
+                setTimeout(() => {
+                    el.innerHTML = `<span style="color:#f39c12; font-size:12px;">(已翻譯至 ${targetLang})</span><br>公司名稱: hytest2a<br>國家: TW<br>Email: hytest2a@hy.com.tw<br>電話: 333<br>產品: IoT Lifetime Flat<br><br>你好，請問你們的 IoT 平台容易與我們現有的硬體整合嗎？請提供更多細節。`;
+                    btn.innerHTML = "🌐 顯示原文";
+                    btn.disabled = false;
+                    btn.style.opacity = "1";
+                    isIncomingTranslated = true;
+                }, 1000);
+            } else {
+                resetIncomingTranslate();
+            }
+        }
+
+        // --- 核心 AI 模擬邏輯 ---
+        function retryAI(prefix) {
+            const action = prefix === 'v' ? lastAction_v : lastAction_e;
+            triggerAI(prefix, action, false); // 重新呼叫正常流程
+        }
+
+        function triggerAI(prefix, action, forceError = false) {
+            document.querySelectorAll('.dropdown-menu').forEach(m => m.style.display = 'none');
+            
+            const mainContentEl = document.getElementById(`${prefix}-content`);
+            const topicEl = document.getElementById(`${prefix}-topic`);
+            const currentText = mainContentEl.value.trim();
+            const currentTopic = topicEl ? topicEl.value.trim() : "";
+
+            // 紀錄當前 Action 供 Retry 使用
+            if (prefix === 'v') lastAction_v = action;
+            else lastAction_e = action;
+
+            let title = "";
+            let generatedContent = "";
+            const isEnglish = (prefix === 'v');
+
+            const toSelect = document.getElementById(`${prefix}-lang-to`);
+            const targetLang = toSelect.options[toSelect.selectedIndex].text;
+
+            // 1. 執行前置檢查與設定產出內容
+            switch(action) {
+                case 'catalog':
+                    title = "✨ AI Generating: Request Catalog";
+                    generatedContent = "Dear Exhibitor,\n\nI am reaching out to express our interest in your products showcased at COMPUTEX. \n\nCould you please provide your latest product catalog along with the pricing list for further evaluation?\n\nLooking forward to your prompt response. Thank you.";
+                    break;
+                case 'specs':
+                    title = "✨ AI Generating: Inquire Tech Specs";
+                    generatedContent = "Dear Technical Team,\n\nRegarding your IoT solution, we would like to confirm a few technical specifications:\n1. Does it support seamless integration with legacy hardware systems?\n2. What protocols are supported by default?\n\nThank you for your assistance.";
+                    break;
+                case 'byTopic':
+                    if(currentTopic === "" && !forceError) return showError(prefix, "Please enter a Topic first for AI to generate content.");
+                    title = `✨ AI Generated by Topic: ${currentTopic}`;
+                    generatedContent = `Hello,\n\nRegarding "${currentTopic}", we hope to have an in-depth discussion with your team during the COMPUTEX exhibition.\n\nWould it be possible to schedule a brief meeting either online or at your booth?\n\nBest regards,`;
+                    break;
+                case 'optimize':
+                    if(currentText === "" && !forceError) return showError(prefix, isEnglish ? "Please write a draft first for AI to optimize." : "請先填寫草稿，AI才能為您優化。");
+                    title = isEnglish ? "✨ AI Optimized (Professional Tone)" : "✨ AI 優化：專業商務語氣";
+                    generatedContent = isEnglish 
+                        ? "Thank you for reaching out.\n\nOur system is designed with seamless integration in mind, making the deployment process highly intuitive and flexible. This significantly reduces the learning curve for new users.\n\nAttached is the detailed product whitepaper for your reference. Please feel free to contact us if you have any further questions."
+                        : "您好，非常感謝您的來信詢問。\n\n我們的系統在設計之初即考量到無縫整合的需求，因此導入過程極為直觀且具備高彈性。\n\n為讓您有更全面的了解，隨信附上詳細的產品白皮書供您參考。若有任何進一步的問題，歡迎隨時與我們聯繫。";
+                    break;
+                case 'translate':
+                    if(currentText === "" && !forceError) return showError(prefix, isEnglish ? "Please enter content to translate." : "請先輸入需要翻譯的內容。");
+                    title = isEnglish ? `🌐 AI Translated to ${targetLang}` : `🌐 AI 翻譯為 ${targetLang}`;
+                    generatedContent = isEnglish
+                        ? "您好，\n\n感謝您的聯繫。\n\n我們的系統具備高度的直覺性與彈性，能無縫整合現有設備。隨信附上產品白皮書供您參考。\n\n誠摯地，"
+                        : "Dear Sir/Madam,\n\nThank you for reaching out to us.\n\nOur system is designed for seamless integration, making the deployment highly intuitive and flexible. Attached is our product whitepaper for your detailed reference.\n\nBest regards,";
+                    break;
+                case 'autoReply':
+                    title = "✨ AI 自動撰寫回覆";
+                    generatedContent = "您好，感謝您對我們 IoT Lifetime Flat 平台的興趣。\n\n我們的平台設計非常友善，能夠透過標準 API 輕鬆與您現有的硬體設備進行整合，大幅縮短開發時間。\n\n隨信附上技術整合手冊供貴團隊參考。如果您需要安排線上的技術展示，請隨時告知我們。\n\n祝 順心";
+                    break;
+                case 'expand':
+                    if(currentText === "" && !forceError) return showError(prefix, "請先輸入草稿，AI 才能為您擴寫。");
+                    title = "✨ AI 擴寫：增加細節";
+                    generatedContent = currentText + "\n\n此外，我們今年在 COMPUTEX 也有實體展位，現場備有完整的系統展示環境，強烈建議您可以撥空前來體驗實際操作。\n\n若需預約專人導覽，請直接回覆本信件。期待能在展會上與您見面。";
+                    break;
+            }
+
+            // 2. UI 狀態切換 (清空並顯示 Loading)
+            const previewContainer = document.getElementById(`${prefix}-ai-preview`);
+            const titleEl = document.getElementById(`${prefix}-ai-title`);
+            const loadingEl = document.getElementById(`${prefix}-loading`);
+            const resultArea = document.getElementById(`${prefix}-result-area`);
+            const errorArea = document.getElementById(`${prefix}-error-area`);
+            const aiTextEl = document.getElementById(`${prefix}-ai-text`);
+
+            titleEl.innerText = title;
+            previewContainer.style.display = 'block';
+            loadingEl.style.display = 'block';
+            resultArea.style.display = 'none';
+            errorArea.style.display = 'none';
+            document.getElementById(`${prefix}-error`).style.display = 'none';
+
+            // 3. 模擬 API 延遲 (1 秒後依照 forceError 判斷顯示結果)
+            setTimeout(() => {
+                loadingEl.style.display = 'none';
+                if (forceError) {
+                    errorArea.style.display = 'block';
+                } else {
+                    resultArea.style.display = 'block';
+                    aiTextEl.value = generatedContent;
+                    aiTextEl.focus();
+                }
+            }, 1000);
+        }
+    </script>
+</body>
+</html>
